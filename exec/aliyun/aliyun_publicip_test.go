@@ -27,7 +27,27 @@ func TestAliyunPublicIpRelease(t *testing.T) {
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
-func TestAliyunPublicIpUnassociate(t *testing.T) {
+func TestAliyunPublicIpAssociate(t *testing.T) {
+	result := allocatePublicIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "1.1.1.1", "instance1")
+	assert.Equal(t, int32(56002), result.Code, "they should be equal")
+}
+
+func TestAliyunPublicIpUnassociateEip(t *testing.T) {
 	result := unassociateEipAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "allocationId", "instance1")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
+}
+
+func TestAliyunPublicIpAssociateEip(t *testing.T) {
+	result := associateEipAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "allocationId", "instance1")
+	assert.Equal(t, int32(56002), result.Code, "they should be equal")
+}
+
+func TestAliyunDescribeEipAddresses(t *testing.T) {
+	_, _err := describeEipAddresses(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "allocationId", "instance1")
+	assert.NotNil(t, _err, "they should be equal")
+}
+
+func TestAliyunDescribeInstances(t *testing.T) {
+	_, _err := describeInstances(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "cn-hangzhou", "i-xx")
+	assert.NotNil(t, _err, "they should be equal")
 }

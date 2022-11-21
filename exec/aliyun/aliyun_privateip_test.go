@@ -26,3 +26,13 @@ func TestAliyunPrivateIpUnassign(t *testing.T) {
 	result := unassignPrivateIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "networkInterfaceId", []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"})
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
+
+func TestAliyunPrivateIpAssign(t *testing.T) {
+	result := assignPrivateIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "networkInterfaceId", []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"})
+	assert.Equal(t, int32(56002), result.Code, "they should be equal")
+}
+
+func TestAliyunNetworkInterfaceAttributeDescribe(t *testing.T) {
+	_, _err := describeNetworkInterfaceAttributeStatus(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "networkInterfaceId")
+	assert.NotNil(t, _err, "they should be equal")
+}
