@@ -31,3 +31,14 @@ func TestAliyunSecurityGroupRemove(t *testing.T) {
 	result := removeInstanceFromSecurityGroup(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "securityGroupId", "networkInterfaceId", "instance1")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
+
+func TestAliyunSecurityGroupAdd(t *testing.T) {
+	result := addInstanceToSecurityGroup(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "securityGroupId", "networkInterfaceId", "instance1")
+	assert.Equal(t, int32(56002), result.Code, "they should be equal")
+}
+
+func TestAliyunDescribeSecurityGroup(t *testing.T) {
+	_, _err := describeInstancesSecurityGroup(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "cn-hangzhou", "i-xx")
+	assert.NotNil(t, _err, "they should be equal")
+}
+

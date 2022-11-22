@@ -17,14 +17,13 @@
 package category
 
 const (
-	System        = "system"
-	SystemCpu     = "system_cpu"
-	SystemMem     = "system_mem"
-	SystemDisk    = "system_disk"
-	SystemNetwork = "system_network"
-	SystemProcess = "system_process"
-	SystemScript  = "system_script"
-	SystemFile    = "system_file"
-	SystemKernel  = "system_kernel"
-	SystemSystemd = "system_systemd"
+	Cloud            = "cloud"
+	Aliyun           = "aliyun"
+	Ecs              = "ecs"
+	NetworkInterface = "networkInterface"
+	PrivateIp        = "privateIp"
+	PublicIp         = "publicIp"
+	SecurityGroup    = "securityGroup"
+	VSwitch          = "vSwitch"
+	Disk             = "disk"
 )

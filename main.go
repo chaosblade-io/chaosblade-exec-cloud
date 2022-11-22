@@ -129,21 +129,6 @@ func main() {
 		} else {
 			if expModel.ActionFlags[model.ChannelFlag.Name] == spec.LocalChannel {
 				executor.SetChannel(channel.NewLocalChannel())
-			} else if expModel.ActionFlags[model.ChannelFlag.Name] == spec.NSExecBin {
-
-				ctx = context.WithValue(ctx, model.NsTargetFlag.Name, expModel.ActionFlags[model.NsTargetFlag.Name])
-
-				if expModel.ActionFlags[model.NsPidFlag.Name] == spec.True {
-					ctx = context.WithValue(ctx, model.NsPidFlag.Name, spec.True)
-				}
-				if expModel.ActionFlags[model.NsMntFlag.Name] == spec.True {
-					ctx = context.WithValue(ctx, model.NsMntFlag.Name, spec.True)
-				}
-				if expModel.ActionFlags[model.NsNetFlag.Name] == spec.True {
-					ctx = context.WithValue(ctx, model.NsNetFlag.Name, spec.True)
-				}
-
-				executor.SetChannel(channel.NewNSExecChannel())
 			} else {
 				executor.SetChannel(channel.NewLocalChannel())
 			}

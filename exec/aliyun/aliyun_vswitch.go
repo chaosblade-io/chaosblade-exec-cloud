@@ -20,6 +20,7 @@ import (
 	"context"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -59,7 +60,7 @@ func NewVSwitchActionSpec() spec.ExpActionCommandSpec {
 # delete vSwitch which vSwitch id is i-x
 blade create aliyun vSwitch --accessKeyId xxx --accessKeySecret yyy --type delete --vSwitchId i-x`,
 			ActionPrograms:   []string{VSwitchBin},
-			ActionCategories: []string{category.SystemProcess},
+			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.VSwitch},
 		},
 	}
 }
@@ -99,10 +100,15 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 	accessKeySecret := model.ActionFlags["accessKeySecret"]
 	operationType := model.ActionFlags["type"]
 	vSwitchId := model.ActionFlags["vSwitchId"]
+	regionId := model.ActionFlags["regionId"]
+	zoneId := model.ActionFlags["zoneId"]
+	cidrBlock := model.ActionFlags["cidrBlock"]
+	vpcId := model.ActionFlags["vpcId"]
 
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_ID from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeyId")
 		}
 		accessKeyId = val
@@ -111,22 +117,70 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 	if accessKeySecret == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_SECRET")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_SECRET from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeySecret")
 		}
 		accessKeySecret = val
+	}
+
+	if regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
 	if vSwitchId == "" {
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "vSwitchId")
 	}
 
+	if zoneId == "" {
+		log.Errorf(ctx, "zoneId is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "zoneId")
+	}
+
+	if cidrBlock == "" {
+		log.Errorf(ctx, "cidrBlock is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "cidrBlock")
+	}
+
+	if vpcId == "" {
+		log.Errorf(ctx, "vpcId is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "vpcId")
+	}
+
+	vSwitchesStatusMap, _err := describeVSwitchesStatus(ctx, accessKeyId, accessKeySecret, regionId)
+	if _err != nil {
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+	}
+
+	if (vSwitchesStatusMap[vSwitchId] != "Available" && operationType == "delete") || (vSwitchesStatusMap[vSwitchId] == "Available" && operationType == "create") {
+		return be.stop(ctx, operationType, accessKeyId, accessKeySecret, vSwitchId, zoneId, cidrBlock, vpcId)
+	}
+	return be.start(ctx, operationType, accessKeyId, accessKeySecret, vSwitchId, zoneId, cidrBlock, vpcId)
+}
+
+func (be *VSwitchExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
 	switch operationType {
 	case "delete":
 		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, vSwitchId)
+	case "create":
+		return createVSwitch(ctx, accessKeyId, accessKeySecret, zoneId, cidrBlock, vpcId)
 	default:
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete, remove)")
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
 	}
 	select {}
+}
+
+func (be *VSwitchExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
+	switch operationType {
+	case "delete":
+		return createVSwitch(ctx, accessKeyId, accessKeySecret, zoneId, cidrBlock, vpcId)
+	case "create":
+		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, vSwitchId)
+	default:
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
+	}
+	ctx = context.WithValue(ctx, "bin", VSwitchBin)
+	return exec.Destroy(ctx, be.channel, "aliyun vSwitch")
 }
 
 func (be *VSwitchExecutor) SetChannel(channel spec.Channel) {
@@ -151,4 +205,51 @@ func deleteVSwitch(ctx context.Context, accessKeyId, accessKeySecret, vSwitchId 
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "delete aliyun vSwitch failed")
 	}
 	return spec.Success()
+}
+
+// create vSwitch
+func createVSwitch(ctx context.Context, accessKeyId, accessKeySecret, zoneId, cidrBlock, vpcId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
+	}
+
+	createVSwitchRequest := &ecs20140526.CreateVSwitchRequest{
+		ZoneId:    tea.String(zoneId),
+		CidrBlock: tea.String(cidrBlock),
+		VpcId:     tea.String(vpcId),
+	}
+
+	_, _err = client.CreateVSwitch(createVSwitchRequest)
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun vSwitch failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun vSwitch failed")
+	}
+	return spec.Success()
+}
+
+// describe VSwitches status
+func describeVSwitchesStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId string) (_result map[string]string, _err error) {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	describeVSwitchesRequest := &ecs20140526.DescribeVSwitchesRequest{
+		RegionId: tea.String(regionId),
+	}
+	response, _err := client.DescribeVSwitches(describeVSwitchesRequest)
+	if _err != nil {
+		log.Errorf(ctx, "describe aliyun VSwitch status failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	vSwitchStatusList := response.Body.VSwitches.VSwitch
+	statusMap := map[string]string{}
+	for _, vSwitchStatus := range vSwitchStatusList {
+		log.Errorf(ctx, "describe aliyun VSwitchId: %s Status: %s", *vSwitchStatus.VSwitchId, *vSwitchStatus.Status)
+		statusMap[*vSwitchStatus.VSwitchId] = *vSwitchStatus.Status
+	}
+	_result = statusMap
+	return _result, _err
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -68,16 +69,13 @@ func NewSecurityGroupActionSpec() spec.ExpActionCommandSpec {
 			},
 			ActionExecutor: &SecurityGroupExecutor{},
 			ActionExample: `
-# delete securityGroup which securityGroup id is i-x
-blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type delete --securityGroupId i-x
-
 # remove instance i-x from securityGroup which securityGroup id is s-x
 blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type remove --securityGroupId s-x --instanceId i-x
 
-# remove networkInterface n-x from securityGroup which securityGroup id is s-x
-blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type remove --securityGroupId s-x --networkInterfaceId n-x`,
+# join networkInterface n-x from securityGroup which securityGroup id is s-x
+blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type join --securityGroupId s-x --networkInterfaceId n-x`,
 			ActionPrograms:   []string{SecurityGroupBin},
-			ActionCategories: []string{category.SystemProcess},
+			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.SecurityGroup},
 		},
 	}
 }
@@ -90,14 +88,14 @@ func (*SecurityGroupActionSpec) Aliases() []string {
 	return []string{}
 }
 func (*SecurityGroupActionSpec) ShortDesc() string {
-	return "do some aliyun securityGroupId Operations, like delete, remove"
+	return "do some aliyun securityGroupId Operations, like join, remove"
 }
 
 func (b *SecurityGroupActionSpec) LongDesc() string {
 	if b.ActionLongDesc != "" {
 		return b.ActionLongDesc
 	}
-	return "do some aliyun securityGroupId Operations, like delete, remove"
+	return "do some aliyun securityGroupId Operations, like join, remove"
 }
 
 type SecurityGroupExecutor struct {
@@ -124,6 +122,7 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_ID from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeyId")
 		}
 		accessKeyId = val
@@ -132,6 +131,7 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 	if accessKeySecret == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_SECRET")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_SECRET from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeySecret")
 		}
 		accessKeySecret = val
@@ -153,15 +153,49 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "networkInterfaceId and instanceId regionId should exist together")
 	}
 
+	if operationType == "remove" || operationType == "join" {
+		securityGroupStatusMap, _ := describeInstancesSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
+		isExist := false
+		for i := 0; i < len(securityGroupStatusMap[instanceId]); i++ {
+			if securityGroupStatusMap[instanceId][i] == securityGroupId {
+				isExist = true
+			}
+		}
+		if (!isExist && operationType == "remove") || (isExist && operationType == "join") {
+			return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+		}
+	}
+	return be.start(ctx, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+}
+
+func (be *SecurityGroupExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	case "delete":
-		return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
+	//case "delete":
+	//	return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
 	case "remove":
 		return removeInstanceFromSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+	case "join":
+		return addInstanceToSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
 	default:
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete, remove)")
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support join, remove)")
 	}
 	select {}
+}
+
+func (be *SecurityGroupExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
+	switch operationType {
+	//case "delete":
+	//	return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
+	case "remove":
+		return addInstanceToSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+	case "join":
+		return removeInstanceFromSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+	default:
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support join, remove)")
+	}
+	select {}
+	ctx = context.WithValue(ctx, "bin", SecurityGroupBin)
+	return exec.Destroy(ctx, be.channel, "aliyun public Ip")
 }
 
 func (be *SecurityGroupExecutor) SetChannel(channel spec.Channel) {
@@ -210,8 +244,65 @@ func removeInstanceFromSecurityGroup(ctx context.Context, accessKeyId, accessKey
 		_, _err = client.LeaveSecurityGroup(leaveSecurityGroupRequest)
 	}
 	if _err != nil {
-		log.Errorf(ctx, "remove aliyun securityGroup failed, err: %s", _err.Error())
+		log.Errorf(ctx, "remove instance from aliyun securityGroup failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "remove aliyun securityGroup failed")
 	}
 	return spec.Success()
+}
+
+// add instance to securityGroup
+func addInstanceToSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
+	}
+	if networkInterfaceId != "" {
+		joinSecurityGroupRequest := &ecs20140526.JoinSecurityGroupRequest{
+			SecurityGroupId:    tea.String(securityGroupId),
+			RegionId:           tea.String(regionId),
+			NetworkInterfaceId: tea.String(networkInterfaceId),
+		}
+		_, _err = client.JoinSecurityGroup(joinSecurityGroupRequest)
+	} else {
+		joinSecurityGroupRequest := &ecs20140526.JoinSecurityGroupRequest{
+			SecurityGroupId: tea.String(securityGroupId),
+			InstanceId:      tea.String(instanceId),
+		}
+		_, _err = client.JoinSecurityGroup(joinSecurityGroupRequest)
+	}
+	if _err != nil {
+		log.Errorf(ctx, "add instance to aliyun securityGroup failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "add instance to aliyun securityGroup failed")
+	}
+	return spec.Success()
+}
+
+// describe instances status
+func describeInstancesSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, instanceId string) (_result map[string][]string, _err error) {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	describeInstancesRequest := &ecs20140526.DescribeInstancesRequest{
+		InstanceIds: tea.String("[\"" + instanceId + "\"]"),
+		RegionId:    tea.String(regionId),
+	}
+	response, _err := client.DescribeInstances(describeInstancesRequest)
+	if _err != nil {
+		log.Errorf(ctx, "describe aliyun instances status failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	instanceList := response.Body.Instances.Instance
+	statusMap := map[string][]string{}
+	for _, instanceStatus := range instanceList {
+		var securityGroupIdList []string
+		for i := 0; i < len(instanceStatus.SecurityGroupIds.SecurityGroupId); i++ {
+			securityGroupIdList = append(securityGroupIdList, *instanceStatus.SecurityGroupIds.SecurityGroupId[i])
+		}
+		statusMap[*instanceStatus.InstanceId] = securityGroupIdList
+	}
+	_result = statusMap
+	return _result, _err
 }

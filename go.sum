@@ -31,6 +31,8 @@ github.com/alibabacloud-go/tea-xml v1.1.2 h1:oLxa7JUXm2EDFzMg+7oRsYc+kutgCVwm+bZ
 github.com/alibabacloud-go/tea-xml v1.1.2/go.mod h1:Rq08vgCcCAjHyRi/M7xlHKUykZCEtyBy9+DPF6GgEu8=
 github.com/aliyun/credentials-go v1.1.2 h1:qU1vwGIBb3UJ8BwunHDRFtAhS6jnQLnde/yk0+Ih2GY=
 github.com/aliyun/credentials-go v1.1.2/go.mod h1:ozcZaMR5kLM7pwtCMEpVmQ242suV6qTJya2bDq4X1Tw=
+github.com/chaosblade-io/chaosblade-exec-cloud v0.0.0-20221103094528-5744058cb750 h1:lyVFO5McOsOGC9ixkeNtJSGh65X2hEV4J9fXoKMx8JM=
+github.com/chaosblade-io/chaosblade-exec-cloud v0.0.0-20221103094528-5744058cb750/go.mod h1:ndiD3ZnQXjo480tX8sgqAdFQTzLRcuo4WFr4UjTt4us=
 github.com/chaosblade-io/chaosblade-spec-go v1.5.1-0.20220423030509-6d8dbd90b300 h1:zHZkTkuMHbeSOZ/vXYgo+0p/qFfLaXQdwKyAFh75hyA=
 github.com/chaosblade-io/chaosblade-spec-go v1.5.1-0.20220423030509-6d8dbd90b300/go.mod h1:977aR5J4BBfLtFkYZkbHv1i7NJYN1X0x85xO3b8YLpc=
 github.com/cilium/ebpf v0.4.0/go.mod h1:4tRaxcgiL706VnOzHOdBlY8IEAIdxINsQBcU4xJJXRs=

@@ -20,6 +20,7 @@ import (
 	"context"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -59,7 +60,7 @@ func NewNetworkInterfaceActionSpec() spec.ExpActionCommandSpec {
 				},
 				&spec.ExpFlag{
 					Name: "type",
-					Desc: "the operation of NetworkInterface, support delete, remove etc",
+					Desc: "the operation of NetworkInterface, support attach, detach etc",
 				},
 				&spec.ExpFlag{
 					Name: "networkInterfaceId",
@@ -68,13 +69,13 @@ func NewNetworkInterfaceActionSpec() spec.ExpActionCommandSpec {
 			},
 			ActionExecutor: &NetworkInterfaceExecutor{},
 			ActionExample: `
-# delete networkInterface which networkInterface id is i-x
-blade create aliyun networkInterface --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type delete --networkInterfaceId i-x
+# attach networkInterface to instance i-x which networkInterface id is s-x
+blade create aliyun networkInterface --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type detach --networkInterfaceId s-x --instanceId i-x
 
-# remove instance i-x from networkInterface which networkInterface id is s-x
+# detach instance i-x from networkInterface which networkInterface id is s-x
 blade create aliyun networkInterface --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type detach --networkInterfaceId s-x --instanceId i-x`,
 			ActionPrograms:   []string{NetworkInterfaceBin},
-			ActionCategories: []string{category.SystemProcess},
+			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.NetworkInterface},
 		},
 	}
 }
@@ -87,14 +88,14 @@ func (*NetworkInterfaceActionSpec) Aliases() []string {
 	return []string{}
 }
 func (*NetworkInterfaceActionSpec) ShortDesc() string {
-	return "do some aliyun networkInterfaceId Operations, like delete, remove"
+	return "do some aliyun networkInterfaceId Operations, like detach, attach"
 }
 
 func (b *NetworkInterfaceActionSpec) LongDesc() string {
 	if b.ActionLongDesc != "" {
 		return b.ActionLongDesc
 	}
-	return "do some aliyun networkInterfaceId Operations, like delete, remove"
+	return "do some aliyun networkInterfaceId Operations, like detach, attach"
 }
 
 type NetworkInterfaceExecutor struct {
@@ -120,6 +121,7 @@ func (be *NetworkInterfaceExecutor) Exec(uid string, ctx context.Context, model 
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_ID from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeyId")
 		}
 		accessKeyId = val
@@ -128,36 +130,70 @@ func (be *NetworkInterfaceExecutor) Exec(uid string, ctx context.Context, model 
 	if accessKeySecret == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_SECRET")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_SECRET from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeySecret")
 		}
 		accessKeySecret = val
 	}
 
 	if operationType == "delete" && regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
 	if networkInterfaceId == "" {
+		log.Errorf(ctx, "networkInterfaceId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "networkInterfaceId")
 	}
 
 	if instanceId != "" && networkInterfaceId != "" {
+		log.Errorf(ctx, "instanceId and networkInterfaceId can not exist both!")
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "instanceId and networkInterfaceId can not exist both")
 	}
 
 	if regionId == "" && networkInterfaceId != "" {
+		log.Errorf(ctx, "networkInterfaceId and instanceId regionId should exist together!")
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "networkInterfaceId and instanceId regionId should exist together")
 	}
 
+	networkInterfaceStatusMap, _err := describeNetworkInterfaceStatus(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	if _err != nil {
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+	}
+	if (networkInterfaceStatusMap[networkInterfaceId] != "InUse" && operationType == "detach") || (networkInterfaceStatusMap[networkInterfaceId] == "InUse" && operationType == "attach") {
+		return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	}
+
+	return be.start(ctx, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+}
+
+func (be *NetworkInterfaceExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	case "delete":
-		return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
-	case "remove":
+	//case "delete":
+	//	return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
+	case "detach":
 		return detachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	case "attach":
+		return attachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
 	default:
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete, remove)")
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support detach)")
 	}
 	select {}
+}
+
+func (be *NetworkInterfaceExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
+	switch operationType {
+	//case "delete":
+	//	return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
+	case "detach":
+		return attachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	case "attach":
+		return detachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	default:
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete, detach)")
+	}
+	ctx = context.WithValue(ctx, "bin", NetworkInterfaceBin)
+	return exec.Destroy(ctx, be.channel, "aliyun networkInterface")
 }
 
 func (be *NetworkInterfaceExecutor) SetChannel(channel spec.Channel) {
@@ -185,7 +221,7 @@ func deleteNetworkInterface(ctx context.Context, accessKeyId, accessKeySecret, r
 	return spec.Success()
 }
 
-// remove networkInterface from instance
+// detach networkInterface from instance
 func detachNetworkInterfaceFromInstance(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
 	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
 	if _err != nil {
@@ -203,4 +239,50 @@ func detachNetworkInterfaceFromInstance(ctx context.Context, accessKeyId, access
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "detach aliyun network interface failed")
 	}
 	return spec.Success()
+}
+
+// attach networkInterface from instance
+func attachNetworkInterfaceFromInstance(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
+	}
+	attachNetworkInterfaceRequest := &ecs20140526.AttachNetworkInterfaceRequest{
+		RegionId:           tea.String(regionId),
+		NetworkInterfaceId: tea.String(networkInterfaceId),
+		InstanceId:         tea.String(instanceId),
+	}
+	_, _err = client.AttachNetworkInterface(attachNetworkInterfaceRequest)
+	if _err != nil {
+		log.Errorf(ctx, "attach aliyun network interface failed, err: %s", _err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "attach aliyun network interface failed")
+	}
+	return spec.Success()
+}
+
+// describe networkInterface status
+func describeNetworkInterfaceStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) (_result map[string]string, _err error) {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	describeNetworkInterfacesRequest := &ecs20140526.DescribeNetworkInterfacesRequest{
+		InstanceId:         tea.String(instanceId),
+		RegionId:           tea.String(regionId),
+		NetworkInterfaceId: []*string{tea.String(networkInterfaceId)},
+	}
+	response, _err := client.DescribeNetworkInterfaces(describeNetworkInterfacesRequest)
+	if _err != nil {
+		log.Errorf(ctx, "describe aliyun networkInterface status failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	networkInterfaceStatusList := response.Body.NetworkInterfaceSets.NetworkInterfaceSet
+	statusMap := map[string]string{}
+	for _, networkInterfaceStatus := range networkInterfaceStatusList {
+		statusMap[*networkInterfaceStatus.NetworkInterfaceId] = *networkInterfaceStatus.Status
+	}
+	_result = statusMap
+	return _result, _err
 }

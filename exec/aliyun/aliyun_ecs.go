@@ -18,16 +18,15 @@ package aliyun
 
 import (
 	"context"
-	"fmt"
 	"github.com/chaosblade-io/chaosblade-spec-go/channel"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"os"
 	"strings"
 
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
@@ -58,7 +57,7 @@ func NewEcsActionSpec() spec.ExpActionCommandSpec {
 				},
 				&spec.ExpFlag{
 					Name: "type",
-					Desc: "the operation of instances, support delete, start, stop, reboot, etc",
+					Desc: "the operation of instances, support start, stop, reboot, etc",
 				},
 				&spec.ExpFlag{
 					Name: "instances",
@@ -70,13 +69,13 @@ func NewEcsActionSpec() spec.ExpActionCommandSpec {
 # stop instances which instance id is i-x,i-y
 blade create aliyun ecs --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type stop --instances i-x,i-y
 
-# delete instances which instance id is i-x,i-y
-blade create aliyun ecs --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type delete --instances i-x,i-y
+# start instances which instance id is i-x,i-y
+blade create aliyun ecs --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type start --instances i-x,i-y
 
 # reboot instances which instance id is i-x,i-y
 blade create aliyun ecs --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type reboot --instances i-x,i-y`,
 			ActionPrograms:   []string{EcsBin},
-			ActionCategories: []string{category.SystemProcess},
+			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.Ecs},
 		},
 	}
 }
@@ -89,14 +88,14 @@ func (*EcsActionSpec) Aliases() []string {
 	return []string{}
 }
 func (*EcsActionSpec) ShortDesc() string {
-	return "do some aliyun ecs Operations, like delete, stop, start, reboot"
+	return "do some aliyun ecs Operations, like stop, start, reboot"
 }
 
 func (b *EcsActionSpec) LongDesc() string {
 	if b.ActionLongDesc != "" {
 		return b.ActionLongDesc
 	}
-	return "do some aliyun ecs Operations, like delete, stop, start, reboot"
+	return "do some aliyun ecs Operations, like stop, start, reboot"
 }
 
 type EcsExecutor struct {
@@ -119,11 +118,10 @@ func (be *EcsExecutor) Exec(uid string, ctx context.Context, model *spec.ExpMode
 	regionId := model.ActionFlags["regionId"]
 	operationType := model.ActionFlags["type"]
 	instances := model.ActionFlags["instances"]
-	fmt.Println("accessKeyId:" + accessKeyId)
-	log.Infof(ctx, "accessKeyId:"+accessKeyId)
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_ID from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeyId")
 		}
 		accessKeyId = val
@@ -132,36 +130,71 @@ func (be *EcsExecutor) Exec(uid string, ctx context.Context, model *spec.ExpMode
 	if accessKeySecret == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_SECRET")
 		if !ok {
+			log.Errorf(ctx, "could not get ACCESS_KEY_SECRET from env or parameter!")
 			return spec.ResponseFailWithFlags(spec.ParameterLess, "accessKeySecret")
 		}
 		accessKeySecret = val
 	}
 
 	if regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
 	if operationType == "" {
+		log.Errorf(ctx, "operationType is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "type")
 	}
 
 	if instances == "" {
+		log.Errorf(ctx, "instances is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "instances")
 	}
+	instancesArray := strings.Split(instances, ",")
+	instanceStatusMap, _err := describeInstancesStatus(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	if _err != nil {
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+	}
 
+	for _, instance := range instancesArray {
+		if (instanceStatusMap[instance] == "Running" && operationType == "start") || (instanceStatusMap[instance] == "Stopped" && operationType == "stop") {
+			return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, instancesArray)
+		}
+	}
+	return be.start(ctx, operationType, accessKeyId, accessKeySecret, regionId, instancesArray)
+}
+
+func (be *EcsExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId string, instancesArray []string) *spec.Response {
 	switch operationType {
 	case "start":
-		return startInstances(ctx, accessKeyId, accessKeySecret, regionId, strings.Split(instances, ","))
+		return startInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	case "stop":
-		return stopInstances(ctx, accessKeyId, accessKeySecret, regionId, strings.Split(instances, ","))
+		return stopInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	case "reboot":
-		return rebootInstances(ctx, accessKeyId, accessKeySecret, regionId, strings.Split(instances, ","))
-	case "delete":
-		return deleteInstances(ctx, accessKeyId, accessKeySecret, regionId, strings.Split(instances, ","))
+		return rebootInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	//case "delete":
+	//	return deleteInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	default:
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support start, stop, reboot, delete)")
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support start, stop, reboot)")
 	}
 	select {}
+}
+
+func (be *EcsExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId string, instancesArray []string) *spec.Response {
+	switch operationType {
+	case "start":
+		return stopInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	case "stop":
+		return startInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	//case "reboot":
+	//	return rebootInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	//case "delete":
+	//	return deleteInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
+	default:
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support start, stop, reboot)")
+	}
+	ctx = context.WithValue(ctx, "bin", EcsBin)
+	return exec.Destroy(ctx, be.channel, "aliyun es")
 }
 
 func (be *EcsExecutor) SetChannel(channel spec.Channel) {
@@ -197,7 +230,6 @@ func startInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId 
 		log.Errorf(ctx, "start aliyun instances failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "start aliyun instances failed")
 	}
-	fmt.Println("startInstances Success")
 	return spec.Success()
 }
 
@@ -259,4 +291,29 @@ func deleteInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "delete aliyun instances failed")
 	}
 	return spec.Success()
+}
+
+// describe instances status
+func describeInstancesStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) (_result map[string]string, _err error) {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	if _err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	describeInstanceStatusRequest := &ecs20140526.DescribeInstanceStatusRequest{
+		InstanceId: tea.StringSlice(instances),
+		RegionId:   tea.String(regionId),
+	}
+	response, _err := client.DescribeInstanceStatus(describeInstanceStatusRequest)
+	if _err != nil {
+		log.Errorf(ctx, "describe aliyun instances status failed, err: %s", _err.Error())
+		return _result, _err
+	}
+	instanceStatusList := response.Body.InstanceStatuses.InstanceStatus
+	statusMap := map[string]string{}
+	for _, instanceStatus := range instanceStatusList {
+		statusMap[*instanceStatus.InstanceId] = *instanceStatus.Status
+	}
+	_result = statusMap
+	return _result, _err
 }

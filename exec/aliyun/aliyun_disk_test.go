@@ -22,17 +22,17 @@ import (
 	"testing"
 )
 
-func TestAliyunVswitchDelete(t *testing.T) {
-	result := deleteVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "vSwitchId")
+func TestAliyunDetachDisk(t *testing.T) {
+	result := detachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "diskId", "i-x")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
-func TestAliyunVswitchCreate(t *testing.T) {
-	result := createVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "zoneId", "cidrBlock", "vpcId")
+func TestAliyunAttachDisk(t *testing.T) {
+	result := attachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "diskId", "i-x")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
-func TestAliyunVswitchDescribe(t *testing.T) {
-	_, _err := describeVSwitchesStatus(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId")
+func TestAliyunDiskDescribe(t *testing.T) {
+	_, _err := describeDisksStatus(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "i-x")
 	assert.NotNil(t, _err, "they should be equal")
 }
