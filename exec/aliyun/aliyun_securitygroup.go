@@ -137,7 +137,8 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 		accessKeySecret = val
 	}
 
-	if operationType == "delete" && regionId == "" {
+	if regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
@@ -154,7 +155,10 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 	}
 
 	if operationType == "remove" || operationType == "join" {
-		securityGroupStatusMap, _ := describeInstancesSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
+		securityGroupStatusMap, _err := describeInstancesSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
+		if _err != nil {
+			return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe security group status failed")
+		}
 		isExist := false
 		for i := 0; i < len(securityGroupStatusMap[instanceId]); i++ {
 			if securityGroupStatusMap[instanceId][i] == securityGroupId {
@@ -204,7 +208,7 @@ func (be *SecurityGroupExecutor) SetChannel(channel spec.Channel) {
 
 // delete securityGroup
 func deleteSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, securityGroupId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -224,7 +228,7 @@ func deleteSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regi
 
 // remove instance from securityGroup
 func removeInstanceFromSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -245,14 +249,14 @@ func removeInstanceFromSecurityGroup(ctx context.Context, accessKeyId, accessKey
 	}
 	if _err != nil {
 		log.Errorf(ctx, "remove instance from aliyun securityGroup failed, err: %s", _err.Error())
-		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "remove aliyun securityGroup failed")
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "remove instance from aliyun securityGroup failed")
 	}
 	return spec.Success()
 }
 
 // add instance to securityGroup
 func addInstanceToSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -280,7 +284,7 @@ func addInstanceToSecurityGroup(ctx context.Context, accessKeyId, accessKeySecre
 
 // describe instances status
 func describeInstancesSecurityGroup(ctx context.Context, accessKeyId, accessKeySecret, regionId, instanceId string) (_result map[string][]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err

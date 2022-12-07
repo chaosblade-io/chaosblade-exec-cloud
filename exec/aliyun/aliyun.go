@@ -34,6 +34,7 @@ func NewAliyunCommandSpec() spec.ExpModelCommandSpec {
 				NewNetworkInterfaceActionSpec(),
 				NewPublicIpActionSpec(),
 				NewPrivateIpActionSpec(),
+				NewDiskActionSpec(),
 			},
 			ExpFlags: []spec.ExpFlagSpec{},
 		},
@@ -49,5 +50,5 @@ func (*AliyunCommandSpec) ShortDesc() string {
 }
 
 func (*AliyunCommandSpec) LongDesc() string {
-	return "Aliyun experiment contains ecs, public ip, private ip, networkInterface, securityGroup, VSwitch"
+	return "Aliyun experiment contains ecs, public ip, private ip, networkInterface, securityGroup, VSwitch, disk"
 }

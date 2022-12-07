@@ -133,20 +133,31 @@ func (be *PublicIpExecutor) Exec(uid string, ctx context.Context, model *spec.Ex
 		accessKeySecret = val
 	}
 
+	if regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
+	}
+
 	if operationType == "release" && publicIpAddress == "" {
+		log.Errorf(ctx, "publicIpAddress is required when operationType is release!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "publicIpAddress")
 	}
 
 	if operationType == "unassociate" && allocationId == "" {
+		log.Errorf(ctx, "allocationId is required when operationType is unassociate!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "allocationId")
 	}
 
 	if operationType == "unassociate" && instanceId == "" {
+		log.Errorf(ctx, "instanceId is required when operationType is unassociate!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "instanceId")
 	}
 
 	if operationType == "release" || operationType == "associate" {
-		ipStatusMap, _ := describeInstances(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
+		ipStatusMap, _err := describeInstances(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
+		if _err != nil {
+			return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe ip status failed")
+		}
 		isExist := false
 		for i := 0; i < len(ipStatusMap[instanceId]); i++ {
 			if ipStatusMap[instanceId][i] == publicIpAddress {
@@ -159,7 +170,10 @@ func (be *PublicIpExecutor) Exec(uid string, ctx context.Context, model *spec.Ex
 	}
 
 	if operationType == "unassociateEip" || operationType == "associateEip" {
-		eipStatusMap, _ := describeEipAddresses(ctx, accessKeyId, accessKeySecret, regionId, allocationId, publicIpAddress)
+		eipStatusMap, _err := describeEipAddresses(ctx, accessKeyId, accessKeySecret, regionId, allocationId, publicIpAddress)
+		if _err != nil {
+			return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe eip status failed")
+		}
 		if (eipStatusMap[publicIpAddress] != "InUse" && operationType == "unassociateEip") || (eipStatusMap[publicIpAddress] == "InUse" && operationType == "associateEip") {
 			return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, allocationId, instanceId, publicIpAddress)
 		}
@@ -170,9 +184,9 @@ func (be *PublicIpExecutor) Exec(uid string, ctx context.Context, model *spec.Ex
 func (be *PublicIpExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, allocationId, instanceId, publicIpAddress string) *spec.Response {
 	switch operationType {
 	case "release":
-		return releasePublicIpAddress(ctx, accessKeyId, accessKeySecret, publicIpAddress, instanceId)
+		return releasePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
 	case "associate":
-		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, publicIpAddress, instanceId)
+		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
 	case "unassociateEip":
 		return unassociateEipAddress(ctx, accessKeyId, accessKeySecret, regionId, allocationId, instanceId)
 	case "associateEip":
@@ -186,9 +200,9 @@ func (be *PublicIpExecutor) start(ctx context.Context, operationType, accessKeyI
 func (be *PublicIpExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, allocationId, instanceId, publicIpAddress string) *spec.Response {
 	switch operationType {
 	case "release":
-		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, publicIpAddress, instanceId)
+		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
 	case "associate":
-		return releasePublicIpAddress(ctx, accessKeyId, accessKeySecret, publicIpAddress, instanceId)
+		return releasePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
 	case "unassociateEip":
 		return associateEipAddress(ctx, accessKeyId, accessKeySecret, regionId, allocationId, instanceId)
 	case "associateEip":
@@ -205,8 +219,8 @@ func (be *PublicIpExecutor) SetChannel(channel spec.Channel) {
 }
 
 // release Public Ip
-func releasePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, publicIpAddress, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+func releasePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -232,8 +246,8 @@ func releasePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, p
 }
 
 // allocate Public Ip
-func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, publicIpAddress, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -255,7 +269,7 @@ func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, 
 
 // unassociate Eip Address
 func unassociateEipAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, allocationId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -284,7 +298,7 @@ func unassociateEipAddress(ctx context.Context, accessKeyId, accessKeySecret, re
 
 // associate Eip Address
 func associateEipAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, allocationId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -313,7 +327,7 @@ func associateEipAddress(ctx context.Context, accessKeyId, accessKeySecret, regi
 
 // describe eip addresses status
 func describeEipAddresses(ctx context.Context, accessKeyId, accessKeySecret, regionId, allocationId, eipAddress string) (_result map[string]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err
@@ -339,7 +353,7 @@ func describeEipAddresses(ctx context.Context, accessKeyId, accessKeySecret, reg
 
 // describe instances status
 func describeInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId, instanceId string) (_result map[string][]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err

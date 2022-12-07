@@ -23,12 +23,12 @@ import (
 )
 
 func TestAliyunPublicIpRelease(t *testing.T) {
-	result := releasePublicIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "1.1.1.1", "instance1")
+	result := releasePublicIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "1.1.1.1", "instance1")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
 func TestAliyunPublicIpAssociate(t *testing.T) {
-	result := allocatePublicIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "1.1.1.1", "instance1")
+	result := allocatePublicIpAddress(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "1.1.1.1", "instance1")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
@@ -51,4 +51,3 @@ func TestAliyunDescribeInstances(t *testing.T) {
 	_, _err := describeInstances(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "cn-hangzhou", "i-xx")
 	assert.NotNil(t, _err, "they should be equal")
 }
-
