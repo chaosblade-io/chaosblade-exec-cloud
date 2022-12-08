@@ -153,7 +153,7 @@ func (be *PrivateIpExecutor) Exec(uid string, ctx context.Context, model *spec.E
 
 	networkInterfaceAttributeStatusMap, _err := describeNetworkInterfaceAttributeStatus(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
 	if _err != nil {
-		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe networkInterface status failed")
 	}
 	for _, privateIpAddressItem := range privateIpAddressArray {
 		if networkInterfaceAttributeStatusMap[privateIpAddressItem] != "InUse" && operationType == "unassign" {
@@ -190,7 +190,7 @@ func (be *PrivateIpExecutor) SetChannel(channel spec.Channel) {
 
 // unassign Private Ip
 func unassignPrivateIpAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId string, privateIpAddress []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -211,7 +211,7 @@ func unassignPrivateIpAddress(ctx context.Context, accessKeyId, accessKeySecret,
 
 // assign Private Ip
 func assignPrivateIpAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId string, privateIpAddress []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -232,7 +232,7 @@ func assignPrivateIpAddress(ctx context.Context, accessKeyId, accessKeySecret, r
 
 // describe networkInterface attribute status
 func describeNetworkInterfaceAttributeStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId, networkInterfaceId string) (_result map[string]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err

@@ -153,7 +153,7 @@ func (be *EcsExecutor) Exec(uid string, ctx context.Context, model *spec.ExpMode
 	instancesArray := strings.Split(instances, ",")
 	instanceStatusMap, _err := describeInstancesStatus(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	if _err != nil {
-		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe instances status failed")
 	}
 
 	for _, instance := range instancesArray {
@@ -201,13 +201,13 @@ func (be *EcsExecutor) SetChannel(channel spec.Channel) {
 	be.channel = channel
 }
 
-func CreateClient(accessKeyId *string, accessKeySecret *string) (_result *ecs20140526.Client, _err error) {
+func CreateClient(accessKeyId *string, accessKeySecret *string, regionId string) (_result *ecs20140526.Client, _err error) {
 	config := &openapi.Config{
 		AccessKeyId:     accessKeyId,
 		AccessKeySecret: accessKeySecret,
 	}
 	// 访问的域名
-	config.Endpoint = tea.String("ecs.cn-qingdao.aliyuncs.com")
+	config.Endpoint = tea.String("ecs." + regionId + ".aliyuncs.com")
 	_result = &ecs20140526.Client{}
 	_result, _err = ecs20140526.NewClient(config)
 	return _result, _err
@@ -215,7 +215,7 @@ func CreateClient(accessKeyId *string, accessKeySecret *string) (_result *ecs201
 
 // start instances
 func startInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -235,7 +235,7 @@ func startInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId 
 
 // stop instances
 func stopInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -255,7 +255,7 @@ func stopInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId s
 
 // reboot instances
 func rebootInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -275,7 +275,7 @@ func rebootInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId
 
 // delete instances
 func deleteInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -295,7 +295,7 @@ func deleteInstances(ctx context.Context, accessKeyId, accessKeySecret, regionId
 
 // describe instances status
 func describeInstancesStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId string, instances []string) (_result map[string]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err

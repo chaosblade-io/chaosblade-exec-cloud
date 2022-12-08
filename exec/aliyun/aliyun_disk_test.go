@@ -23,12 +23,12 @@ import (
 )
 
 func TestAliyunDetachDisk(t *testing.T) {
-	result := detachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "diskId", "i-x")
+	result := detachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "diskId", "i-x")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
 func TestAliyunAttachDisk(t *testing.T) {
-	result := attachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "diskId", "i-x")
+	result := attachDisk(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "diskId", "i-x")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
