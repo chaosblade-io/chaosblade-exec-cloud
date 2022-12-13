@@ -23,12 +23,12 @@ import (
 )
 
 func TestAliyunVswitchDelete(t *testing.T) {
-	result := deleteVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "vSwitchId")
+	result := deleteVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "vSwitchId")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 
 func TestAliyunVswitchCreate(t *testing.T) {
-	result := createVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "zoneId", "cidrBlock", "vpcId")
+	result := createVSwitch(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "zoneId", "cidrBlock", "vpcId")
 	assert.Equal(t, int32(56002), result.Code, "they should be equal")
 }
 

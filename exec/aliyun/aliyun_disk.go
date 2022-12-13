@@ -52,7 +52,7 @@ func NewDiskActionSpec() spec.ExpActionCommandSpec {
 				},
 				&spec.ExpFlag{
 					Name: "diskId",
-					Desc: "the DiskId",
+					Desc: "the diskId",
 				},
 				&spec.ExpFlag{
 					Name: "instanceId",
@@ -129,6 +129,11 @@ func (be *DiskExecutor) Exec(uid string, ctx context.Context, model *spec.ExpMod
 		accessKeySecret = val
 	}
 
+	if regionId == "" {
+		log.Errorf(ctx, "regionId is required!")
+		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
+	}
+
 	if diskId == "" {
 		log.Errorf(ctx, "diskId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "diskId")
@@ -141,33 +146,33 @@ func (be *DiskExecutor) Exec(uid string, ctx context.Context, model *spec.ExpMod
 
 	disksStatusMap, _err := describeDisksStatus(ctx, accessKeyId, accessKeySecret, regionId, instanceId)
 	if _err != nil {
-		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "create aliyun client failed")
+		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe disks status failed")
 	}
 
 	if (disksStatusMap[diskId] != "In_use" && operationType == "detach") || (disksStatusMap[diskId] == "In_use" && operationType == "attach") {
-		return be.stop(ctx, operationType, accessKeyId, accessKeySecret, diskId, instanceId)
+		return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	}
-	return be.start(ctx, operationType, accessKeyId, accessKeySecret, diskId, instanceId)
+	return be.start(ctx, operationType, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 }
 
-func (be *DiskExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, diskId, instanceId string) *spec.Response {
+func (be *DiskExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, diskId, instanceId string) *spec.Response {
 	switch operationType {
 	case "detach":
-		return detachDisk(ctx, accessKeyId, accessKeySecret, diskId, instanceId)
+		return detachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	case "attach":
-		return attachDisk(ctx, accessKeyId, accessKeySecret, diskId, instanceId)
+		return attachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	default:
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
+		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support detach)")
 	}
 	select {}
 }
 
-func (be *DiskExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, diskId, instanceId string) *spec.Response {
+func (be *DiskExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, diskId, instanceId string) *spec.Response {
 	switch operationType {
 	case "detach":
-		return attachDisk(ctx, accessKeyId, accessKeySecret, diskId, instanceId)
+		return attachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	case "attach":
-		return detachDisk(ctx, accessKeyId, accessKeySecret, diskId, instanceId)
+		return detachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support detach)")
 	}
@@ -180,8 +185,8 @@ func (be *DiskExecutor) SetChannel(channel spec.Channel) {
 }
 
 // detach disk
-func detachDisk(ctx context.Context, accessKeyId, accessKeySecret, diskId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+func detachDisk(ctx context.Context, accessKeyId, accessKeySecret, regionId, diskId, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -202,8 +207,8 @@ func detachDisk(ctx context.Context, accessKeyId, accessKeySecret, diskId, insta
 }
 
 // create disk
-func attachDisk(ctx context.Context, accessKeyId, accessKeySecret, diskId, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+func attachDisk(ctx context.Context, accessKeyId, accessKeySecret, regionId, diskId, instanceId string) *spec.Response {
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
@@ -224,7 +229,7 @@ func attachDisk(ctx context.Context, accessKeyId, accessKeySecret, diskId, insta
 
 // describe Disks status
 func describeDisksStatus(ctx context.Context, accessKeyId, accessKeySecret, regionId, instanceId string) (_result map[string]string, _err error) {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret))
+	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
 	if _err != nil {
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err
@@ -241,7 +246,6 @@ func describeDisksStatus(ctx context.Context, accessKeyId, accessKeySecret, regi
 	diskStatusList := response.Body.Disks.Disk
 	statusMap := map[string]string{}
 	for _, diskStatus := range diskStatusList {
-		log.Errorf(ctx, "describe aliyun DiskId: %s Status: %s", *diskStatus.DiskId, *diskStatus.Status)
 		statusMap[*diskStatus.DiskId] = *diskStatus.Status
 	}
 	_result = statusMap

@@ -46,4 +46,3 @@ func TestAliyunEcsDescribe(t *testing.T) {
 	_, _err := describeInstancesStatus(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", []string{"instance1", "instance2", "instance3"})
 	assert.NotNil(t, _err, "they should be equal")
 }
-
