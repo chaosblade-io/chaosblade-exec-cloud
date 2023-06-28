@@ -1,6 +1,6 @@
 module github.com/chaosblade-io/chaosblade-exec-cloud
 
-go 1.13
+go 1.20
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.18
