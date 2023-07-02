@@ -19,7 +19,9 @@ package category
 const (
 	Cloud            = "cloud"
 	Aliyun           = "aliyun"
+	Aws              = "aws"
 	Ecs              = "ecs"
+	Ec2              = "ec2"
 	NetworkInterface = "networkInterface"
 	PrivateIp        = "privateIp"
 	PublicIp         = "publicIp"
