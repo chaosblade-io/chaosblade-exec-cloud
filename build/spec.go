@@ -18,6 +18,7 @@ package main
 
 import (
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/aliyun"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/aws"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/model"
 	"log"
 	"os"
@@ -41,6 +42,7 @@ func main() {
 func getModels() *spec.Models {
 	modelCommandSpecs := []spec.ExpModelCommandSpec{
 		aliyun.NewAliyunCommandSpec(),
+		aws.NewAwsCommandSpec(),
 	}
 	specModels := make([]*spec.Models, 0)
 	for _, modeSpec := range modelCommandSpecs {

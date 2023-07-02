@@ -7,6 +7,10 @@ require (
 	github.com/alibabacloud-go/ecs-20140526/v4 v4.24.17
 	github.com/alibabacloud-go/tea v1.1.19
 	github.com/alibabacloud-go/tea-xml v1.1.2 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.18.1
+	github.com/aws/aws-sdk-go-v2/config v1.18.27
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.26
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.102.0
 	github.com/chaosblade-io/chaosblade-spec-go v1.7.2
 	github.com/clbanning/mxj/v2 v2.5.6 // indirect
 	github.com/containerd/cgroups v1.0.2-0.20210605143700-23b51209bf7b
