@@ -18,15 +18,15 @@ package aliyun
 
 import (
 	"context"
+	"os"
+	"strings"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
-	"strings"
 )
 
 const PrivateIpBin = "chaos_aliyun_privateip"
@@ -66,8 +66,8 @@ func NewPrivateIpActionSpec() spec.ExpActionCommandSpec {
 			},
 			ActionExecutor: &PrivateIpExecutor{},
 			ActionExample: `
-# unassociate private ip from networkInterfaceId n-x which privateIpAddress is 1.1.1.1,2.2.2.2
-blade create aliyun privateIp --accessKeyId xxx --accessKeySecret yyy --type unassign --regionId cn-qingdao --networkInterfaceId n-x --privateIpAddress 1.1.1.1,2.2.2.2`,
+# unassociate private ip from networkInterfaceId n-x which privateIpAddress is 192.25.119.242
+blade create aliyun privateIp --accessKeyId xxx --accessKeySecret yyy --type unassign --regionId cn-qingdao --networkInterfaceId n-x --privateIpAddress 192.25.119.242`,
 			ActionPrograms:   []string{PrivateIpBin},
 			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.PrivateIp},
 		},
@@ -170,7 +170,6 @@ func (be *PrivateIpExecutor) start(ctx context.Context, operationType, accessKey
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support unassign)")
 	}
-	select {}
 }
 
 func (be *PrivateIpExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId string, privateIpAddressArray []string) *spec.Response {
@@ -180,8 +179,6 @@ func (be *PrivateIpExecutor) stop(ctx context.Context, operationType, accessKeyI
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support unassign)")
 	}
-	ctx = context.WithValue(ctx, "bin", PrivateIpBin)
-	return exec.Destroy(ctx, be.channel, "aliyun private Ip")
 }
 
 func (be *PrivateIpExecutor) SetChannel(channel spec.Channel) {

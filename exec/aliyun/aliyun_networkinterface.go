@@ -20,7 +20,6 @@ import (
 	"context"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -62,10 +61,10 @@ func NewNetworkInterfaceActionSpec() spec.ExpActionCommandSpec {
 					Name: "type",
 					Desc: "the operation of NetworkInterface, support attach, detach etc",
 				},
-				&spec.ExpFlag{
-					Name: "networkInterfaceId",
-					Desc: "the NetworkInterfaceId",
-				},
+				//&spec.ExpFlag{
+				//	Name: "networkInterfaceId",
+				//	Desc: "the NetworkInterfaceId",
+				//},
 			},
 			ActionExecutor: &NetworkInterfaceExecutor{},
 			ActionExample: `
@@ -146,15 +145,16 @@ func (be *NetworkInterfaceExecutor) Exec(uid string, ctx context.Context, model 
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "networkInterfaceId")
 	}
 
-	if instanceId != "" && networkInterfaceId != "" {
-		log.Errorf(ctx, "instanceId and networkInterfaceId can not exist both!")
-		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "instanceId and networkInterfaceId can not exist both")
-	}
+	//if instanceId != "" && networkInterfaceId != "" {
+	//	log.Errorf(ctx, "instanceId and networkInterfaceId can not exist both!")
+	//	return spec.ResponseFailWithFlags(spec.ParameterInvalid, "instanceId and networkInterfaceId can not exist both")
+	//}
 
 	networkInterfaceStatusMap, _err := describeNetworkInterfaceStatus(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
 	if _err != nil {
 		return spec.ResponseFailWithFlags(spec.ParameterRequestFailed, "describe networkInterface status failed")
 	}
+
 	if (networkInterfaceStatusMap[networkInterfaceId] != "InUse" && operationType == "detach") || (networkInterfaceStatusMap[networkInterfaceId] == "InUse" && operationType == "attach") {
 		return be.stop(ctx, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
 	}
@@ -173,7 +173,6 @@ func (be *NetworkInterfaceExecutor) start(ctx context.Context, operationType, ac
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support attach, detach)")
 	}
-	select {}
 }
 
 func (be *NetworkInterfaceExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
@@ -181,14 +180,12 @@ func (be *NetworkInterfaceExecutor) stop(ctx context.Context, operationType, acc
 	//case "delete":
 	//	return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
 	case "detach":
-		return attachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
-	case "attach":
 		return detachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
+	case "attach":
+		return attachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support attach, detach)")
 	}
-	ctx = context.WithValue(ctx, "bin", NetworkInterfaceBin)
-	return exec.Destroy(ctx, be.channel, "aliyun networkInterface")
 }
 
 func (be *NetworkInterfaceExecutor) SetChannel(channel spec.Channel) {

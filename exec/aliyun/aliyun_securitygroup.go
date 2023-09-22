@@ -20,7 +20,6 @@ import (
 	"context"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -73,7 +72,7 @@ func NewSecurityGroupActionSpec() spec.ExpActionCommandSpec {
 blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type remove --securityGroupId s-x --instanceId i-x
 
 # join networkInterface n-x from securityGroup which securityGroup id is s-x
-blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type join --securityGroupId s-x --networkInterfaceId n-x`,
+blade create aliyun securityGroup --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type join --securityGroupId s-x  --instanceId n-x`,
 			ActionPrograms:   []string{SecurityGroupBin},
 			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.SecurityGroup},
 		},
@@ -183,7 +182,6 @@ func (be *SecurityGroupExecutor) start(ctx context.Context, operationType, acces
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support join, remove)")
 	}
-	select {}
 }
 
 func (be *SecurityGroupExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
@@ -191,15 +189,12 @@ func (be *SecurityGroupExecutor) stop(ctx context.Context, operationType, access
 	//case "delete":
 	//	return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
 	case "remove":
-		return addInstanceToSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
-	case "join":
 		return removeInstanceFromSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
+	case "join":
+		return addInstanceToSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support join, remove)")
 	}
-	select {}
-	ctx = context.WithValue(ctx, "bin", SecurityGroupBin)
-	return exec.Destroy(ctx, be.channel, "aliyun public Ip")
 }
 
 func (be *SecurityGroupExecutor) SetChannel(channel spec.Channel) {

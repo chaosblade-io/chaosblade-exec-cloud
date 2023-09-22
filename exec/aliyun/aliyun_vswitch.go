@@ -18,9 +18,10 @@ package aliyun
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -54,11 +55,27 @@ func NewVSwitchActionSpec() spec.ExpActionCommandSpec {
 					Name: "vSwitchId",
 					Desc: "the VSwitchId",
 				},
+				&spec.ExpFlag{
+					Name: "regionId",
+					Desc: "the region",
+				},
+				&spec.ExpFlag{
+					Name: "zoneId",
+					Desc: "the zone",
+				},
+				&spec.ExpFlag{
+					Name: "cidrBlock",
+					Desc: "the cidrBlock",
+				},
+				&spec.ExpFlag{
+					Name: "vpcId",
+					Desc: "the vpcId",
+				},
 			},
 			ActionExecutor: &VSwitchExecutor{},
 			ActionExample: `
 # delete vSwitch which vSwitch id is i-x
-blade create aliyun vSwitch --accessKeyId xxx --accessKeySecret yyy --type delete --vSwitchId i-x`,
+blade create aliyun vSwitch --accessKeyId xxx --accessKeySecret yyy --type delete --regionId cn-hangzhou --vSwitchId i-x --zoneId cn-hangzhou-i --cidrBlock 172.25.112.0/20 --vpcId pl-bp1u4q5qaq8el5662hisy`,
 			ActionPrograms:   []string{VSwitchBin},
 			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.VSwitch},
 		},
@@ -92,6 +109,7 @@ func (*VSwitchExecutor) Name() string {
 }
 
 func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.ExpModel) *spec.Response {
+	fmt.Println("开始进行调试vswitch===========")
 	if be.channel == nil {
 		util.Errorf(uid, util.GetRunFuncName(), spec.ChannelNil.Msg)
 		return spec.ResponseFailWithFlags(spec.ChannelNil)
@@ -105,6 +123,7 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 	cidrBlock := model.ActionFlags["cidrBlock"]
 	vpcId := model.ActionFlags["vpcId"]
 
+	fmt.Println("vswitch=================开始了", vSwitchId)
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
@@ -161,6 +180,7 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 }
 
 func (be *VSwitchExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
+	fmt.Println("start------------", operationType)
 	switch operationType {
 	case "delete":
 		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, regionId, vSwitchId)
@@ -169,20 +189,21 @@ func (be *VSwitchExecutor) start(ctx context.Context, operationType, accessKeyId
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
 	}
-	select {}
+	//select {}
 }
 
 func (be *VSwitchExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
+	fmt.Println("stop------------", operationType)
 	switch operationType {
 	case "delete":
-		return createVSwitch(ctx, accessKeyId, accessKeySecret, regionId, zoneId, cidrBlock, vpcId)
-	case "create":
 		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, regionId, vSwitchId)
+	case "create":
+		return createVSwitch(ctx, accessKeyId, accessKeySecret, regionId, zoneId, cidrBlock, vpcId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
 	}
-	ctx = context.WithValue(ctx, "bin", VSwitchBin)
-	return exec.Destroy(ctx, be.channel, "aliyun vSwitch")
+	//ctx = context.WithValue(ctx, "bin", VSwitchBin)
+	//return exec.Destroy(ctx, be.channel, "aliyun vSwitch")
 }
 
 func (be *VSwitchExecutor) SetChannel(channel spec.Channel) {
@@ -238,6 +259,7 @@ func describeVSwitchesStatus(ctx context.Context, accessKeyId, accessKeySecret, 
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return _result, _err
 	}
+
 	describeVSwitchesRequest := &ecs20140526.DescribeVSwitchesRequest{
 		RegionId: tea.String(regionId),
 	}
@@ -246,6 +268,9 @@ func describeVSwitchesStatus(ctx context.Context, accessKeyId, accessKeySecret, 
 		log.Errorf(ctx, "describe aliyun VSwitch status failed, err: %s", _err.Error())
 		return _result, _err
 	}
+
+	v, _ := json.Marshal(response.Body)
+	fmt.Println("describeVSwitchesStatus response================", string(v))
 	vSwitchStatusList := response.Body.VSwitches.VSwitch
 	statusMap := map[string]string{}
 	for _, vSwitchStatus := range vSwitchStatusList {

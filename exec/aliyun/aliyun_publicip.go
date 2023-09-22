@@ -18,9 +18,9 @@ package aliyun
 
 import (
 	"context"
+	"fmt"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
@@ -66,10 +66,10 @@ func NewPublicIpActionSpec() spec.ExpActionCommandSpec {
 			ActionExecutor: &PublicIpExecutor{},
 			ActionExample: `
 # release publicIp which publicIpAddress is 1.1.1.1
-blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --type release --publicIpAddress 1.1.1.1
+blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --regionId xxxx --type release --publicIpAddress 1.1.1.1
 
 # unassociate publicIp from instance i-x which allocationId id is a-x
-blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --type unassociate --instanceId i-x --allocationId a-x`,
+blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --regionId xxxx --type unassociate --instanceId i-x --allocationId a-x`,
 			ActionPrograms:   []string{PublicIpBin},
 			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.PublicIp},
 		},
@@ -138,6 +138,7 @@ func (be *PublicIpExecutor) Exec(uid string, ctx context.Context, model *spec.Ex
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
+	fmt.Println("公共的publibip-================", operationType)
 	if operationType == "release" && publicIpAddress == "" {
 		log.Errorf(ctx, "publicIpAddress is required when operationType is release!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "publicIpAddress")
@@ -194,7 +195,6 @@ func (be *PublicIpExecutor) start(ctx context.Context, operationType, accessKeyI
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support release, associate, unassociateEip, associateEip)")
 	}
-	select {}
 }
 
 func (be *PublicIpExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, allocationId, instanceId, publicIpAddress string) *spec.Response {
@@ -210,8 +210,6 @@ func (be *PublicIpExecutor) stop(ctx context.Context, operationType, accessKeyId
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support release, associate, unassociateEip, associateEip)")
 	}
-	ctx = context.WithValue(ctx, "bin", PublicIpBin)
-	return exec.Destroy(ctx, be.channel, "aliyun public Ip")
 }
 
 func (be *PublicIpExecutor) SetChannel(channel spec.Channel) {
