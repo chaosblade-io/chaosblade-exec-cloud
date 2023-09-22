@@ -18,13 +18,14 @@ package aliyun
 
 import (
 	"context"
+	"os"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
 )
 
 const DiskBin = "chaos_aliyun_disk"
@@ -65,7 +66,9 @@ func NewDiskActionSpec() spec.ExpActionCommandSpec {
 			ActionExecutor: &DiskExecutor{},
 			ActionExample: `
 # delete disk which disk id is i-x
-blade create aliyun disk --accessKeyId xxx --accessKeySecret yyy --regionId cn-qingdao --type detach --instanceId i-x --diskId y`,
+blade create aliyun disk --accessKeyId xxx --accessKeySecret yyy --regionId cn-hangzhou --type detach --instanceId i-x --diskId y
+# attach disk which disk id is i-x
+blade create aliyun disk --accessKeyId xxx  --accessKeySecret yyy --regionId cn-hangzhou --type attach --instanceId i-x  --diskId y`,
 			ActionPrograms:   []string{DiskBin},
 			ActionCategories: []string{category.Cloud + "_" + category.Aliyun + "_" + category.Disk},
 		},
@@ -168,9 +171,9 @@ func (be *DiskExecutor) start(ctx context.Context, operationType, accessKeyId, a
 func (be *DiskExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, diskId, instanceId string) *spec.Response {
 	switch operationType {
 	case "detach":
-		return attachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
-	case "attach":
 		return detachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
+	case "attach":
+		return attachDisk(ctx, accessKeyId, accessKeySecret, regionId, diskId, instanceId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support detach)")
 	}

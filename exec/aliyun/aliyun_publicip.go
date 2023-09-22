@@ -18,7 +18,6 @@ package aliyun
 
 import (
 	"context"
-	"fmt"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
@@ -138,7 +137,6 @@ func (be *PublicIpExecutor) Exec(uid string, ctx context.Context, model *spec.Ex
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
-	fmt.Println("公共的publibip-================", operationType)
 	if operationType == "release" && publicIpAddress == "" {
 		log.Errorf(ctx, "publicIpAddress is required when operationType is release!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "publicIpAddress")
