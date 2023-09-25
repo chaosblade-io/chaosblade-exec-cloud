@@ -18,13 +18,15 @@ package aliyun
 
 import (
 	"context"
+	"fmt"
+	"os"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
 )
 
 const PublicIpBin = "chaos_aliyun_publicip"
@@ -61,11 +63,15 @@ func NewPublicIpActionSpec() spec.ExpActionCommandSpec {
 					Name: "publicIpAddress",
 					Desc: "the PublicIpAddress",
 				},
+				&spec.ExpFlag{
+					Name: "instanceId",
+					Desc: "the instanceId",
+				},
 			},
 			ActionExecutor: &PublicIpExecutor{},
 			ActionExample: `
 # release publicIp which publicIpAddress is 1.1.1.1
-blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --regionId xxxx --type release --publicIpAddress 1.1.1.1
+blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --regionId xxxx --type release --publicIpAddress 1.1.1.1 --instanceId i-bp12yp5rq6cq
 
 # unassociate publicIp from instance i-x which allocationId id is a-x
 blade create aliyun publicIp --accessKeyId xxx --accessKeySecret yyy --regionId xxxx --type unassociate --instanceId i-x --allocationId a-x`,
@@ -198,13 +204,13 @@ func (be *PublicIpExecutor) start(ctx context.Context, operationType, accessKeyI
 func (be *PublicIpExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, allocationId, instanceId, publicIpAddress string) *spec.Response {
 	switch operationType {
 	case "release":
-		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
-	case "associate":
 		return releasePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
+	case "associate":
+		return allocatePublicIpAddress(ctx, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId)
 	case "unassociateEip":
-		return associateEipAddress(ctx, accessKeyId, accessKeySecret, regionId, allocationId, instanceId)
-	case "associateEip":
 		return unassociateEipAddress(ctx, accessKeyId, accessKeySecret, regionId, allocationId, instanceId)
+	case "associateEip":
+		return associateEipAddress(ctx, accessKeyId, accessKeySecret, regionId, allocationId, instanceId)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support release, associate, unassociateEip, associateEip)")
 	}
@@ -222,30 +228,24 @@ func releasePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, r
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
 	}
 
-	if instanceId != "" {
-		releasePublicIpAddressRequest := &ecs20140526.ReleasePublicIpAddressRequest{
-			PublicIpAddress: tea.String(publicIpAddress),
-			InstanceId:      tea.String(instanceId),
-		}
-		_, _err = client.ReleasePublicIpAddress(releasePublicIpAddressRequest)
-	} else {
-		releasePublicIpAddressRequest := &ecs20140526.ReleasePublicIpAddressRequest{
-			PublicIpAddress: tea.String(publicIpAddress),
-		}
-		_, _err = client.ReleasePublicIpAddress(releasePublicIpAddressRequest)
+	releasePublicIpAddressRequest := &ecs20140526.ReleasePublicIpAddressRequest{
+		PublicIpAddress: tea.String(publicIpAddress),
+		InstanceId:      tea.String(instanceId),
 	}
-	if _err != nil {
-		log.Errorf(ctx, "release aliyun public Ip failed, err: %s", _err.Error())
-		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "release aliyun public Ip failed")
+	res, err := client.ReleasePublicIpAddress(releasePublicIpAddressRequest)
+	if err != nil {
+		log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", err.Error())
+		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")
 	}
+	fmt.Println("res========", res, err.Error())
 	return spec.Success()
 }
 
 // allocate Public Ip
 func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, regionId, publicIpAddress, instanceId string) *spec.Response {
-	client, _err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
-	if _err != nil {
-		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
+	client, err := CreateClient(tea.String(accessKeyId), tea.String(accessKeySecret), regionId)
+	if err != nil {
+		log.Errorf(ctx, "create aliyun client failed, err: %s", err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
 	}
 
@@ -254,12 +254,14 @@ func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, 
 			IpAddress:  tea.String(publicIpAddress),
 			InstanceId: tea.String(instanceId),
 		}
-		_, _err = client.AllocatePublicIpAddress(allocatePublicIpAddressRequest)
+		_, err = client.AllocatePublicIpAddress(allocatePublicIpAddressRequest)
+		fmt.Println("errr-rr", err.Error())
+		if err != nil {
+			log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", err.Error())
+			return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")
+		}
 	}
-	if _err != nil {
-		log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", _err.Error())
-		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")
-	}
+
 	return spec.Success()
 }
 

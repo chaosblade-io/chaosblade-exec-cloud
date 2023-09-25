@@ -18,8 +18,6 @@ package aliyun
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
@@ -109,7 +107,6 @@ func (*VSwitchExecutor) Name() string {
 }
 
 func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.ExpModel) *spec.Response {
-	fmt.Println("开始进行调试vswitch===========")
 	if be.channel == nil {
 		util.Errorf(uid, util.GetRunFuncName(), spec.ChannelNil.Msg)
 		return spec.ResponseFailWithFlags(spec.ChannelNil)
@@ -123,7 +120,6 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 	cidrBlock := model.ActionFlags["cidrBlock"]
 	vpcId := model.ActionFlags["vpcId"]
 
-	fmt.Println("vswitch=================开始了", vSwitchId)
 	if accessKeyId == "" {
 		val, ok := os.LookupEnv("ACCESS_KEY_ID")
 		if !ok {
@@ -180,7 +176,6 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 }
 
 func (be *VSwitchExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
-	fmt.Println("start------------", operationType)
 	switch operationType {
 	case "delete":
 		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, regionId, vSwitchId)
@@ -189,11 +184,9 @@ func (be *VSwitchExecutor) start(ctx context.Context, operationType, accessKeyId
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
 	}
-	//select {}
 }
 
 func (be *VSwitchExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, vSwitchId, zoneId, cidrBlock, vpcId string) *spec.Response {
-	fmt.Println("stop------------", operationType)
 	switch operationType {
 	case "delete":
 		return deleteVSwitch(ctx, accessKeyId, accessKeySecret, regionId, vSwitchId)
@@ -202,8 +195,6 @@ func (be *VSwitchExecutor) stop(ctx context.Context, operationType, accessKeyId,
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support delete)")
 	}
-	//ctx = context.WithValue(ctx, "bin", VSwitchBin)
-	//return exec.Destroy(ctx, be.channel, "aliyun vSwitch")
 }
 
 func (be *VSwitchExecutor) SetChannel(channel spec.Channel) {
@@ -269,8 +260,6 @@ func describeVSwitchesStatus(ctx context.Context, accessKeyId, accessKeySecret, 
 		return _result, _err
 	}
 
-	v, _ := json.Marshal(response.Body)
-	fmt.Println("describeVSwitchesStatus response================", string(v))
 	vSwitchStatusList := response.Body.VSwitches.VSwitch
 	statusMap := map[string]string{}
 	for _, vSwitchStatus := range vSwitchStatusList {
