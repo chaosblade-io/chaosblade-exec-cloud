@@ -18,7 +18,6 @@ package aliyun
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
@@ -227,17 +226,17 @@ func releasePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, r
 		log.Errorf(ctx, "create aliyun client failed, err: %s", _err.Error())
 		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "create aliyun client failed")
 	}
-
-	releasePublicIpAddressRequest := &ecs20140526.ReleasePublicIpAddressRequest{
-		PublicIpAddress: tea.String(publicIpAddress),
-		InstanceId:      tea.String(instanceId),
+	if instanceId != "" {
+		releasePublicIpAddressRequest := &ecs20140526.ReleasePublicIpAddressRequest{
+			PublicIpAddress: tea.String(publicIpAddress),
+			InstanceId:      tea.String(instanceId),
+		}
+		_, err := client.ReleasePublicIpAddress(releasePublicIpAddressRequest)
+		if err != nil {
+			log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", err.Error())
+			return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")
+		}
 	}
-	res, err := client.ReleasePublicIpAddress(releasePublicIpAddressRequest)
-	if err != nil {
-		log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", err.Error())
-		return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")
-	}
-	fmt.Println("res========", res, err.Error())
 	return spec.Success()
 }
 
@@ -255,7 +254,6 @@ func allocatePublicIpAddress(ctx context.Context, accessKeyId, accessKeySecret, 
 			InstanceId: tea.String(instanceId),
 		}
 		_, err = client.AllocatePublicIpAddress(allocatePublicIpAddressRequest)
-		fmt.Println("errr-rr", err.Error())
 		if err != nil {
 			log.Errorf(ctx, "allocate aliyun public Ip failed, err: %s", err.Error())
 			return spec.ResponseFailWithFlags(spec.ContainerInContextNotFound, "allocate aliyun public Ip failed")

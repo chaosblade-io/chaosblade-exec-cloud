@@ -143,7 +143,7 @@ func (be *VSwitchExecutor) Exec(uid string, ctx context.Context, model *spec.Exp
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "regionId")
 	}
 
-	if vSwitchId == "" {
+	if vSwitchId == "" && operationType == "delete" {
 		log.Errorf(ctx, "vSwitchId is required!")
 		return spec.ResponseFailWithFlags(spec.ParameterLess, "vSwitchId")
 	}
