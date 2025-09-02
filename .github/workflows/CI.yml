@@ -1,30 +1,76 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
-  build:
-    name: ${{ matrix.os }} - CI - Go ${{ matrix.go_version }}
+  test:
+    name: ${{ matrix.os }} - Test - Go ${{ matrix.go_version }}
     runs-on: ${{ matrix.os }}
     strategy:
-      # If you want to matrix build , you can append the following list.
       matrix:
         go_version:
-          - 1.15
-          - 1.16
-          - 1.17
+          - "1.20"
         os:
           - ubuntu-latest
     steps:
       - name: Set Up Go ${{ matrix.go_version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go_version }}
         id: go
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Tests
         id: test
         run: |
           make test
+
+  build:
+    name: Build ${{ matrix.platform }} - Go 1.20
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - linux_amd64
+          - linux_arm64
+          - darwin_amd64
+          - darwin_arm64
+          - windows_amd64
+    steps:
+      - name: Set Up Go 1.20
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+        id: go
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+      - name: Build ${{ matrix.platform }}
+        id: build
+        run: |
+          make ${{ matrix.platform }}
+      - name: Verify Build Output
+        id: verify
+        run: |
+          echo "Verifying build output for ${{ matrix.platform }}..."
+          ls -la target/
+          BUILD_DIR=$(find target/ -name "chaosblade-*-${{ matrix.platform }}" -type d | head -1)
+          if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
+            echo "✅ Build directory created successfully: $BUILD_DIR"
+            find "$BUILD_DIR" -type f -name "chaos_cloud*" | head -1
+            find "$BUILD_DIR" -type f -name "*.yaml" | head -1
+          else
+            echo "❌ Build directory not found for ${{ matrix.platform }}"
+            exit 1
+          fi
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaosblade-${{ matrix.platform }}
+          path: target/chaosblade-*-${{ matrix.platform }}
+          retention-days: 7

@@ -1,61 +1,214 @@
-.PHONY: build clean
+.PHONY: build clean linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64 help build_all
 
 BLADE_SRC_ROOT=$(shell pwd)
-
-GO_ENV=CGO_ENABLED=1
-GO_MODULE=GO111MODULE=on
-GO=env $(GO_ENV) $(GO_MODULE) go
-GO_FLAGS=-ldflags="-s -w"
-
 UNAME := $(shell uname)
 
+# Version management - auto-detect from git tags
 ifeq ($(BLADE_VERSION), )
-	BLADE_VERSION=1.7.4
+	BLADE_VERSION=$(shell ./version/version.sh version)
 endif
+
+# Additional version information
+GIT_COMMIT=$(shell ./version/version.sh commit)
+BUILD_TIME=$(shell ./version/version.sh build-time)
+BUILD_TYPE=$(shell ./version/version.sh build-type)
+FULL_VERSION=$(shell ./version/version.sh full-version)
 
 BUILD_TARGET=target
 BUILD_TARGET_DIR_NAME=chaosblade-$(BLADE_VERSION)
 BUILD_TARGET_PKG_DIR=$(BUILD_TARGET)/chaosblade-$(BLADE_VERSION)
 BUILD_TARGET_BIN=$(BUILD_TARGET_PKG_DIR)/bin
 BUILD_TARGET_YAML=$(BUILD_TARGET_PKG_DIR)/yaml
-BUILD_IMAGE_PATH=build/image/blade
-# cache downloaded file
-BUILD_TARGET_CACHE=$(BUILD_TARGET)/cache
 
+# Platform-specific directory functions
+define get_platform_dir_name
+chaosblade-$(BLADE_VERSION)-$(1)
+endef
+
+define get_platform_pkg_dir
+$(BUILD_TARGET)/chaosblade-$(BLADE_VERSION)-$(1)
+endef
+
+define get_platform_bin_dir
+$(BUILD_TARGET)/chaosblade-$(BLADE_VERSION)-$(1)/bin
+endef
+
+define get_platform_yaml_dir
+$(BUILD_TARGET)/chaosblade-$(BLADE_VERSION)-$(1)/yaml
+endef
+
+# YAML file name
 CLOUD_YAML_FILE_NAME=chaosblade-cloud-spec-$(BLADE_VERSION).yaml
 CLOUD_YAML_FILE_PATH=$(BUILD_TARGET_YAML)/$(CLOUD_YAML_FILE_NAME)
 
-ifeq ($(GOOS), linux)
-	GO_FLAGS=-ldflags="-linkmode external -extldflags -static -s -w"
-endif
+# Binary file name
+CLOUD_BINARY_NAME=chaos_cloud
 
-# build cloud
+GO_ENV=CGO_ENABLED=0
+GO_MODULE=GO111MODULE=on
+GO=env $(GO_ENV) $(GO_MODULE) go
+
+# Cross-compilation GO command (without CGO)
+GO_CROSS=env CGO_ENABLED=0 GO111MODULE=on go
+
+# Host platform for running generators (ensure go run executes on host arch)
+HOST_GOOS=$(shell go env GOHOSTOS)
+HOST_GOARCH=$(shell go env GOHOSTARCH)
+
+# Build flags for different platforms with version information
+GO_FLAGS_LINUX_AMD64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+GO_FLAGS_LINUX_ARM64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+GO_FLAGS_DARWIN_AMD64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+GO_FLAGS_DARWIN_ARM64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+GO_FLAGS_WINDOWS_AMD64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+# Common build flags
+GO_FLAGS_COMMON=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
+
+# Help target (default)
+help:
+	@echo "ChaosBlade Cloud Executor Build System"
+	@echo "======================================"
+	@echo ""
+	@echo "Version Information:"
+	@echo "  Version:         $(BLADE_VERSION)"
+	@echo "  Git Commit:      $(GIT_COMMIT)"
+	@echo "  Build Time:      $(BUILD_TIME)"
+	@echo "  Build Type:      $(BUILD_TYPE)"
+	@echo "  Full Version:    $(FULL_VERSION)"
+	@echo ""
+	@echo "Available Build Targets:"
+	@echo "  build          - Build current platform version"
+	@echo "  build_all      - Build all platform versions"
+	@echo "  linux_amd64    - Build Linux AMD64 version"
+	@echo "  linux_arm64    - Build Linux ARM64 version"
+	@echo "  darwin_amd64   - Build macOS AMD64 version"
+	@echo "  darwin_arm64   - Build macOS ARM64 version"
+	@echo "  windows_amd64  - Build Windows AMD64 version"
+	@echo ""
+	@echo "Other Commands:"
+	@echo "  test           - Run tests"
+	@echo "  clean          - Clean build products"
+	@echo "  all            - Build and test"
+	@echo "  help           - Show this help information"
+	@echo "  version        - Show version information"
+	@echo ""
+	@echo "Environment Variables:"
+	@echo "  BLADE_VERSION  - Specify build version (default: auto-detect from Git Tag)"
+	@echo ""
+	@echo "Usage Examples:"
+	@echo "  make help                    # Show help"
+	@echo "  make build                   # Build current platform version"
+	@echo "  make build_all               # Build all platform versions"
+	@echo "  make linux_amd64            # Build Linux AMD64 version"
+	@echo "  BLADE_VERSION=1.8.0 make build  # Build with specified version"
+	@echo ""
+
+# Default target
+.DEFAULT_GOAL := help
+
+# Version info target
+version:
+	@echo "Version Information:"
+	@echo "  Version:         $(BLADE_VERSION)"
+	@echo "  Git Commit:      $(GIT_COMMIT)"
+	@echo "  Build Time:      $(BUILD_TIME)"
+	@echo "  Build Type:      $(BUILD_TYPE)"
+	@echo "  Full Version:    $(FULL_VERSION)"
+	@echo "  Is Tagged:       $(shell ./version/version.sh is-tagged)"
+
+# build cloud for current platform
 build: pre_build build_yaml build_cloud
 
 pre_build:
-	rm -rf $(BUILD_TARGET_PKG_DIR) $(BUILD_TARGET_PKG_FILE_PATH)
+	rm -rf $(BUILD_TARGET_PKG_DIR)
 	mkdir -p $(BUILD_TARGET_BIN) $(BUILD_TARGET_YAML)
 
 build_yaml: build/spec.go
-	$(GO) run $< $(CLOUD_YAML_FILE_PATH)
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" $< $(CLOUD_YAML_FILE_PATH)
 
 build_cloud: main.go
-	$(GO) build $(GO_FLAGS) -o $(BUILD_TARGET_BIN)/chaos_cloud $<
+	$(GO) build $(GO_FLAGS_COMMON) -o $(BUILD_TARGET_BIN)/$(CLOUD_BINARY_NAME) $<
 
-# build chaosblade linux version by docker image
-build_linux:
-	docker build -f build/image/musl/Dockerfile -t chaosblade-cloud-build-musl:latest build/image/musl
-	docker run --rm \
-		-v $(shell echo -n ${GOPATH}):/go \
-		-v $(BLADE_SRC_ROOT):/chaosblade-exec-cloud \
-		-w /chaosblade-exec-cloud \
-		chaosblade-cloud-build-musl:latest
+# Multi-platform build targets
+linux_amd64:
+	$(eval PLATFORM := linux_amd64)
+	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
+	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
+	rm -rf $(PLATFORM_PKG_DIR)
+	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
+	GOOS=linux GOARCH=amd64 $(GO_CROSS) build $(GO_FLAGS_LINUX_AMD64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME) main.go
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
+
+linux_arm64:
+	$(eval PLATFORM := linux_arm64)
+	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
+	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
+	rm -rf $(PLATFORM_PKG_DIR)
+	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
+	GOOS=linux GOARCH=arm64 $(GO_CROSS) build $(GO_FLAGS_LINUX_ARM64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME) main.go
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
+
+darwin_amd64:
+	$(eval PLATFORM := darwin_amd64)
+	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
+	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
+	rm -rf $(PLATFORM_PKG_DIR)
+	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
+	GOOS=darwin GOARCH=amd64 $(GO) build $(GO_FLAGS_DARWIN_AMD64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME) main.go
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
+
+darwin_arm64:
+	$(eval PLATFORM := darwin_arm64)
+	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
+	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
+	rm -rf $(PLATFORM_PKG_DIR)
+	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
+	GOOS=darwin GOARCH=arm64 $(GO) build $(GO_FLAGS_DARWIN_ARM64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME) main.go
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
+
+windows_amd64:
+	$(eval PLATFORM := windows_amd64)
+	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
+	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
+	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
+	rm -rf $(PLATFORM_PKG_DIR)
+	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
+	GOOS=windows GOARCH=amd64 $(GO_CROSS) build $(GO_FLAGS_WINDOWS_AMD64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME).exe main.go
+	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
 
 # test
 test:
 	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
 # clean all build result
 clean:
 	go clean ./...
 	rm -rf $(BUILD_TARGET)
-	rm -rf $(BUILD_IMAGE_PATH)/$(BUILD_TARGET_DIR_NAME)
+
+# Build all platforms
+build_all: linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64
+	@echo "=========================================="
+	@echo "All platform builds completed successfully!"
+	@echo "Generated directories:"
+	@echo "  - chaosblade-$(BLADE_VERSION)-linux_amd64"
+	@echo "  - chaosblade-$(BLADE_VERSION)-linux_arm64"
+	@echo "  - chaosblade-$(BLADE_VERSION)-darwin_amd64"
+	@echo "  - chaosblade-$(BLADE_VERSION)-darwin_arm64"
+	@echo "  - chaosblade-$(BLADE_VERSION)-windows_amd64"
+	@echo "=========================================="
+
+all: build test
