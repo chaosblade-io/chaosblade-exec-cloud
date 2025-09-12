@@ -64,7 +64,6 @@ GO_FLAGS_DARWIN_AMD64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitComm
 
 GO_FLAGS_DARWIN_ARM64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
 
-GO_FLAGS_WINDOWS_AMD64=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
 
 # Common build flags
 GO_FLAGS_COMMON=-ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE) -s -w"
@@ -88,7 +87,6 @@ help:
 	@echo "  linux_arm64    - Build Linux ARM64 version"
 	@echo "  darwin_amd64   - Build macOS AMD64 version"
 	@echo "  darwin_arm64   - Build macOS ARM64 version"
-	@echo "  windows_amd64  - Build Windows AMD64 version"
 	@echo ""
 	@echo "Other Commands:"
 	@echo "  test           - Run tests"
@@ -179,16 +177,6 @@ darwin_arm64:
 	GOOS=darwin GOARCH=arm64 $(GO) build $(GO_FLAGS_DARWIN_ARM64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME) main.go
 	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
 
-windows_amd64:
-	$(eval PLATFORM := windows_amd64)
-	$(eval PLATFORM_PKG_DIR := $(call get_platform_pkg_dir,$(PLATFORM)))
-	$(eval PLATFORM_BIN_DIR := $(call get_platform_bin_dir,$(PLATFORM)))
-	$(eval PLATFORM_YAML_DIR := $(call get_platform_yaml_dir,$(PLATFORM)))
-	$(eval PLATFORM_YAML_FILE := $(PLATFORM_YAML_DIR)/$(CLOUD_YAML_FILE_NAME))
-	rm -rf $(PLATFORM_PKG_DIR)
-	mkdir -p $(PLATFORM_BIN_DIR) $(PLATFORM_YAML_DIR)
-	GOOS=windows GOARCH=amd64 $(GO_CROSS) build $(GO_FLAGS_WINDOWS_AMD64) -o $(PLATFORM_BIN_DIR)/$(CLOUD_BINARY_NAME).exe main.go
-	GOOS=$(HOST_GOOS) GOARCH=$(HOST_GOARCH) $(GO) run -ldflags="-X main.Version=$(BLADE_VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME) -X main.BuildType=$(BUILD_TYPE)" build/spec.go $(PLATFORM_YAML_FILE)
 
 # test
 test:
@@ -200,7 +188,7 @@ clean:
 	rm -rf $(BUILD_TARGET)
 
 # Build all platforms
-build_all: linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64
+build_all: linux_amd64 linux_arm64 darwin_amd64 darwin_arm64
 	@echo "=========================================="
 	@echo "All platform builds completed successfully!"
 	@echo "Generated directories:"
@@ -208,7 +196,6 @@ build_all: linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64
 	@echo "  - chaosblade-$(BLADE_VERSION)-linux_arm64"
 	@echo "  - chaosblade-$(BLADE_VERSION)-darwin_amd64"
 	@echo "  - chaosblade-$(BLADE_VERSION)-darwin_arm64"
-	@echo "  - chaosblade-$(BLADE_VERSION)-windows_amd64"
 	@echo "=========================================="
 
 all: build test
