@@ -18,14 +18,16 @@ package aliyun
 
 import (
 	"context"
+	"os"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
+
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 )
 
 const DiskBin = "chaos_aliyun_disk"
@@ -80,6 +82,7 @@ func (*DiskActionSpec) Name() string {
 func (*DiskActionSpec) Aliases() []string {
 	return []string{}
 }
+
 func (*DiskActionSpec) ShortDesc() string {
 	return "do some aliyun diskId Operations, like detach"
 }

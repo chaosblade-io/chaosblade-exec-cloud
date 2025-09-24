@@ -17,11 +17,12 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/aliyun"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/aws"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/model"
-	"log"
-	"os"
 
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"

@@ -18,14 +18,16 @@ package aliyun
 
 import (
 	"context"
+	"os"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
+
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 )
 
 const NetworkInterfaceBin = "chaos_aliyun_networkinterface"
@@ -87,6 +89,7 @@ func (*NetworkInterfaceActionSpec) Name() string {
 func (*NetworkInterfaceActionSpec) Aliases() []string {
 	return []string{}
 }
+
 func (*NetworkInterfaceActionSpec) ShortDesc() string {
 	return "do some aliyun networkInterfaceId Operations, like detach, attach"
 }
@@ -164,7 +167,7 @@ func (be *NetworkInterfaceExecutor) Exec(uid string, ctx context.Context, model 
 
 func (be *NetworkInterfaceExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	//case "delete":
+	// case "delete":
 	//	return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
 	case "detach":
 		return detachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)
@@ -178,7 +181,7 @@ func (be *NetworkInterfaceExecutor) start(ctx context.Context, operationType, ac
 
 func (be *NetworkInterfaceExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	//case "delete":
+	// case "delete":
 	//	return deleteNetworkInterface(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId)
 	case "detach":
 		return attachNetworkInterfaceFromInstance(ctx, accessKeyId, accessKeySecret, regionId, networkInterfaceId, instanceId)

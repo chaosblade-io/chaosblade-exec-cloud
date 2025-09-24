@@ -18,8 +18,9 @@ package aliyun
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAliyunSecurityGroupDelete(t *testing.T) {
@@ -41,4 +42,3 @@ func TestAliyunDescribeSecurityGroup(t *testing.T) {
 	_, _err := describeInstancesSecurityGroup(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "cn-hangzhou", "i-xx")
 	assert.NotNil(t, _err, "they should be equal")
 }
-

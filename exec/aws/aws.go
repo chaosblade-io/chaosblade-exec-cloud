@@ -29,12 +29,12 @@ func NewAwsCommandSpec() spec.ExpModelCommandSpec {
 		spec.BaseExpModelCommandSpec{
 			ExpActions: []spec.ExpActionCommandSpec{
 				NewEcsActionSpec(),
-				//NewVSwitchActionSpec(),
-				//NewSecurityGroupActionSpec(),
-				//NewNetworkInterfaceActionSpec(),
-				//NewPublicIpActionSpec(),
-				//NewPrivateIpActionSpec(),
-				//NewDiskActionSpec(),
+				// NewVSwitchActionSpec(),
+				// NewSecurityGroupActionSpec(),
+				// NewNetworkInterfaceActionSpec(),
+				// NewPublicIpActionSpec(),
+				// NewPrivateIpActionSpec(),
+				// NewDiskActionSpec(),
 			},
 			ExpFlags: []spec.ExpFlagSpec{},
 		},
