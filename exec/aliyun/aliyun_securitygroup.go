@@ -18,14 +18,16 @@ package aliyun
 
 import (
 	"context"
+	"os"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
-	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
 	"github.com/chaosblade-io/chaosblade-spec-go/spec"
 	"github.com/chaosblade-io/chaosblade-spec-go/util"
-	"os"
+
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
+	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
 )
 
 const SecurityGroupBin = "chaos_aliyun_securitygroup"
@@ -87,6 +89,7 @@ func (*SecurityGroupActionSpec) Name() string {
 func (*SecurityGroupActionSpec) Aliases() []string {
 	return []string{}
 }
+
 func (*SecurityGroupActionSpec) ShortDesc() string {
 	return "do some aliyun securityGroupId Operations, like join, remove"
 }
@@ -174,7 +177,7 @@ func (be *SecurityGroupExecutor) Exec(uid string, ctx context.Context, model *sp
 
 func (be *SecurityGroupExecutor) start(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	//case "delete":
+	// case "delete":
 	//	return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
 	case "remove":
 		return removeInstanceFromSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)
@@ -188,7 +191,7 @@ func (be *SecurityGroupExecutor) start(ctx context.Context, operationType, acces
 
 func (be *SecurityGroupExecutor) stop(ctx context.Context, operationType, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId string) *spec.Response {
 	switch operationType {
-	//case "delete":
+	// case "delete":
 	//	return deleteSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId)
 	case "remove":
 		return addInstanceToSecurityGroup(ctx, accessKeyId, accessKeySecret, regionId, securityGroupId, networkInterfaceId, instanceId)

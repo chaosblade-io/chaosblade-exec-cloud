@@ -18,18 +18,19 @@ package aws
 
 import (
 	"context"
+	"os"
+	"strings"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/chaosblade-io/chaosblade-spec-go/log"
-	"os"
-	"strings"
+	"github.com/chaosblade-io/chaosblade-spec-go/spec"
+	"github.com/chaosblade-io/chaosblade-spec-go/util"
 
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec"
 	"github.com/chaosblade-io/chaosblade-exec-cloud/exec/category"
-	"github.com/chaosblade-io/chaosblade-spec-go/spec"
-	"github.com/chaosblade-io/chaosblade-spec-go/util"
 )
 
 const Ec2Bin = "chaos_aws_ec2"
@@ -86,6 +87,7 @@ func (*EcsActionSpec) Name() string {
 func (*EcsActionSpec) Aliases() []string {
 	return []string{}
 }
+
 func (*EcsActionSpec) ShortDesc() string {
 	return "do some aws ecs Operations, like stop, start, reboot"
 }
@@ -169,7 +171,7 @@ func (be *EcsExecutor) start(ctx context.Context, operationType, accessKeyId, ac
 		return stopAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	case "reboot":
 		return rebootAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
-	//case "delete":
+	// case "delete":
 	//	return deleteAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support start, stop, reboot)")
@@ -183,9 +185,9 @@ func (be *EcsExecutor) stop(ctx context.Context, operationType, accessKeyId, acc
 		return stopAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	case "stop":
 		return startAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
-	//case "reboot":
+	// case "reboot":
 	//	return rebootAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
-	//case "delete":
+	// case "delete":
 	//	return deleteAwsInstances(ctx, accessKeyId, accessKeySecret, regionId, instancesArray)
 	default:
 		return spec.ResponseFailWithFlags(spec.ParameterInvalid, "type is not support(support start, stop, reboot)")

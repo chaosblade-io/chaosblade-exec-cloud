@@ -18,8 +18,9 @@ package aliyun
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAliyunPrivateIpUnassign(t *testing.T) {
@@ -36,4 +37,3 @@ func TestAliyunNetworkInterfaceAttributeDescribe(t *testing.T) {
 	_, _err := describeNetworkInterfaceAttributeStatus(context.WithValue(context.Background(), "uid", "123"), "accessKeyId", "accessKeySecret", "regionId", "networkInterfaceId")
 	assert.NotNil(t, _err, "they should be equal")
 }
-

@@ -18,8 +18,9 @@ package aliyun
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAliyunEcsStart(t *testing.T) {
