@@ -117,7 +117,7 @@ jobs:
 
   ci-gate:
     name: CI Gate
-    needs: [test]
+    needs: [test, build-matrix]
     if: always()
     runs-on: ubuntu-latest
     steps:
